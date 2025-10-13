@@ -21,14 +21,15 @@ export function AuthPage() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [supabaseConfigured, setSupabaseConfigured] = useState<boolean | null>(null)
+  const [registerLoading, setRegisterLoading] = useState(false);
   const router = useRouter()
 
   useEffect(() => {
     // Check if Supabase is configured
     const checkSupabase = async () => {
       try {
-        const { createClient } = await import('@/lib/supabase/client')
-        createClient()
+        const { createServerClient } = await import('@/lib/supabase/client')
+        createServerClient()
         setSupabaseConfigured(true)
       } catch {
         setSupabaseConfigured(false)
@@ -80,6 +81,28 @@ export function AuthPage() {
       setIsLoading(false)
     }
   }
+
+  // Registration handler
+  const handleRegister = async (userType: string, formData: Record<string, any>) => {
+    setRegisterLoading(true);
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, userType }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert('Registration successful! Please check your email for verification.');
+        setActiveTab('login');
+      } else {
+        alert(data.error || 'Registration failed');
+      }
+    } catch (error) {
+      alert('Registration failed. Please try again.');
+    }
+    setRegisterLoading(false);
+  };
 
   // Show setup checker if Supabase is not configured
   if (supabaseConfigured === false) {
@@ -214,7 +237,6 @@ export function AuthPage() {
               <TabsContent value="register" className="space-y-4 mt-6">
                 <CardTitle className="text-2xl text-center">Create Account</CardTitle>
                 <CardDescription className="text-center">Register for TPO Portal access</CardDescription>
-
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="registerType">Register as</Label>
@@ -244,10 +266,24 @@ export function AuthPage() {
                       </SelectContent>
                     </Select>
                   </div>
-
-                  {userType === "student" && <StudentRegistrationForm />}
-                  {userType === "faculty" && <FacultyRegistrationForm />}
-                  {userType === "company" && <CompanyRegistrationForm />}
+                  {userType === "student" && (
+                    <StudentRegistrationForm
+                      onRegister={(formData) => handleRegister("student", formData)}
+                      loading={registerLoading}
+                    />
+                  )}
+                  {userType === "faculty" && (
+                    <FacultyRegistrationForm
+                      onRegister={(formData) => handleRegister("faculty", formData)}
+                      loading={registerLoading}
+                    />
+                  )}
+                  {userType === "company" && (
+                    <CompanyRegistrationForm
+                      onRegister={(formData) => handleRegister("company", formData)}
+                      loading={registerLoading}
+                    />
+                  )}
                 </div>
               </TabsContent>
             </Tabs>
@@ -262,30 +298,37 @@ export function AuthPage() {
   )
 }
 
-function StudentRegistrationForm() {
+function StudentRegistrationForm({ onRegister, loading }: { onRegister: (data: any) => void, loading: boolean }) {
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", rollNumber: "", branch: "", password: "" });
   return (
-    <div className="space-y-4">
+    <form
+      className="space-y-4"
+      onSubmit={e => {
+        e.preventDefault();
+        onRegister(form);
+      }}
+    >
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="firstName">First Name</Label>
-          <Input id="firstName" placeholder="John" />
+          <Input id="firstName" value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="lastName">Last Name</Label>
-          <Input id="lastName" placeholder="Doe" />
+          <Input id="lastName" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} />
         </div>
       </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" placeholder="john.doe@college.edu" />
+        <Input id="email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="rollNumber">Roll Number</Label>
-        <Input id="rollNumber" placeholder="CS2021001" />
+        <Input id="rollNumber" value={form.rollNumber} onChange={e => setForm(f => ({ ...f, rollNumber: e.target.value }))} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="branch">Branch</Label>
-        <Select>
+        <Select value={form.branch} onValueChange={value => setForm(f => ({ ...f, branch: value }))}>
           <SelectTrigger>
             <SelectValue placeholder="Select your branch" />
           </SelectTrigger>
@@ -300,36 +343,43 @@ function StudentRegistrationForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
-        <Input id="password" type="password" placeholder="Create a password" />
+        <Input id="password" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
       </div>
       <Badge variant="outline" className="w-full justify-center py-2">
         Email verification required after registration
       </Badge>
-      <Button className="w-full" size="lg">
-        Register as Student
+      <Button className="w-full" size="lg" type="submit" disabled={loading}>
+        {loading ? "Registering..." : "Register as Student"}
       </Button>
-    </div>
-  )
+    </form>
+  );
 }
 
-function FacultyRegistrationForm() {
+function FacultyRegistrationForm({ onRegister, loading }: { onRegister: (data: any) => void, loading: boolean }) {
+  const [form, setForm] = useState({ facultyName: "", facultyEmail: "", employeeId: "", department: "", facultyPassword: "" });
   return (
-    <div className="space-y-4">
+    <form
+      className="space-y-4"
+      onSubmit={e => {
+        e.preventDefault();
+        onRegister(form);
+      }}
+    >
       <div className="space-y-2">
         <Label htmlFor="facultyName">Full Name</Label>
-        <Input id="facultyName" placeholder="Dr. Jane Smith" />
+        <Input id="facultyName" value={form.facultyName} onChange={e => setForm(f => ({ ...f, facultyName: e.target.value }))} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="facultyEmail">Email</Label>
-        <Input id="facultyEmail" type="email" placeholder="jane.smith@college.edu" />
+        <Input id="facultyEmail" type="email" value={form.facultyEmail} onChange={e => setForm(f => ({ ...f, facultyEmail: e.target.value }))} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="employeeId">Employee ID</Label>
-        <Input id="employeeId" placeholder="FAC001" />
+        <Input id="employeeId" value={form.employeeId} onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="department">Department</Label>
-        <Select>
+        <Select value={form.department} onValueChange={value => setForm(f => ({ ...f, department: value }))}>
           <SelectTrigger>
             <SelectValue placeholder="Select department" />
           </SelectTrigger>
@@ -344,28 +394,35 @@ function FacultyRegistrationForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="facultyPassword">Password</Label>
-        <Input id="facultyPassword" type="password" placeholder="Create a password" />
+        <Input id="facultyPassword" type="password" value={form.facultyPassword} onChange={e => setForm(f => ({ ...f, facultyPassword: e.target.value }))} />
       </div>
       <Badge variant="outline" className="w-full justify-center py-2">
         Admin approval required
       </Badge>
-      <Button className="w-full" size="lg">
-        Register as Faculty
+      <Button className="w-full" size="lg" type="submit" disabled={loading}>
+        {loading ? "Registering..." : "Register as Faculty"}
       </Button>
-    </div>
-  )
+    </form>
+  );
 }
 
-function CompanyRegistrationForm() {
+function CompanyRegistrationForm({ onRegister, loading }: { onRegister: (data: any) => void, loading: boolean }) {
+  const [form, setForm] = useState({ companyName: "", industry: "", contactPerson: "", companyEmail: "", companyPhone: "", companyPassword: "" });
   return (
-    <div className="space-y-4">
+    <form
+      className="space-y-4"
+      onSubmit={e => {
+        e.preventDefault();
+        onRegister(form);
+      }}
+    >
       <div className="space-y-2">
         <Label htmlFor="companyName">Company Name</Label>
-        <Input id="companyName" placeholder="Tech Corp Inc." />
+        <Input id="companyName" value={form.companyName} onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="industry">Industry</Label>
-        <Select>
+        <Select value={form.industry} onValueChange={value => setForm(f => ({ ...f, industry: value }))}>
           <SelectTrigger>
             <SelectValue placeholder="Select industry" />
           </SelectTrigger>
@@ -380,26 +437,26 @@ function CompanyRegistrationForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="contactPerson">Contact Person</Label>
-        <Input id="contactPerson" placeholder="HR Manager Name" />
+        <Input id="contactPerson" value={form.contactPerson} onChange={e => setForm(f => ({ ...f, contactPerson: e.target.value }))} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="companyEmail">Email</Label>
-        <Input id="companyEmail" type="email" placeholder="hr@techcorp.com" />
+        <Input id="companyEmail" type="email" value={form.companyEmail} onChange={e => setForm(f => ({ ...f, companyEmail: e.target.value }))} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="companyPhone">Phone Number</Label>
-        <Input id="companyPhone" placeholder="+91 9876543210" />
+        <Input id="companyPhone" value={form.companyPhone} onChange={e => setForm(f => ({ ...f, companyPhone: e.target.value }))} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="companyPassword">Password</Label>
-        <Input id="companyPassword" type="password" placeholder="Create a password" />
+        <Input id="companyPassword" type="password" value={form.companyPassword} onChange={e => setForm(f => ({ ...f, companyPassword: e.target.value }))} />
       </div>
       <Badge variant="outline" className="w-full justify-center py-2">
         Admin approval required
       </Badge>
-      <Button className="w-full" size="lg">
-        Register as Company
+      <Button className="w-full" size="lg" type="submit" disabled={loading}>
+        {loading ? "Registering..." : "Register as Company"}
       </Button>
-    </div>
-  )
+    </form>
+  );
 }

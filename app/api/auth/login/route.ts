@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
       email: validatedData.email,
       password: validatedData.password,
     })
+    console.log('Auth response:', authData, authError);
 
     if (authError) {
       return NextResponse.json(
@@ -33,13 +34,14 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
-
+    console.log('Auth user id:', authData.user.id);
     // Get user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', authData.user.id)
-      .single()
+      .eq('user_id', authData.user.id)
+      .single() 
+    console.log('Profile query result:', profile, profileError);
 
     if (profileError || !profile) {
       return NextResponse.json(
@@ -48,10 +50,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user is approved
-    if (!profile.is_approved) {
+    // Check if user is approved (skip check for admin role)
+    if (profile.role !== 'admin' && !profile.is_approved) {
       return NextResponse.json(
-        { error: 'Account pending approval' },
+        { error: 'Account pending approval. Please wait for admin/faculty approval.' },
         { status: 403 }
       )
     }

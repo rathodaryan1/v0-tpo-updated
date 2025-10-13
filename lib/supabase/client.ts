@@ -1,13 +1,11 @@
-import { createBrowserClient } from '@supabase/ssr'
+// lib/supabase/client.ts
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
-export function createClient() {
-  // Check if environment variables are set up
+// Server-side client for API routes (no cookies needed)
+export function createServerClient() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    throw new Error('Supabase environment variables are not configured. Please set up your .env.local file.')
+    throw new Error('Supabase environment variables are not configured.')
   }
 
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  )
+  return createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 }
