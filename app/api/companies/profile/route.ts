@@ -5,14 +5,12 @@ import { z } from 'zod'
 const updateProfileSchema = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
+  companyName: z.string().min(1).optional(),
+  industry: z.string().optional(),
+  contactPerson: z.string().optional(),
   phone: z.string().optional(),
-  address: z.string().optional(),
-  branch: z.string().optional(),
-  year: z.number().min(1).max(5).optional(),
-  cgpa: z.number().min(0).max(10).optional(),
-  skills: z.array(z.string()).optional(),
-  certifications: z.array(z.string()).optional(),
-  trainingExperience: z.string().optional(),
+  website: z.string().url().optional(),
+  description: z.string().optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -25,7 +23,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get profile and student data
+    // Get profile and company data
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
@@ -36,14 +34,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
     }
 
-    const { data: studentData, error: studentError } = await supabase
-      .from('students')
+    const { data: companyData, error: companyError } = await supabase
+      .from('companies')
       .select('*')
       .eq('profile_id', user.id)
       .single()
 
-    if (studentError || !studentData) {
-      return NextResponse.json({ error: 'Student data not found' }, { status: 404 })
+    if (companyError || !companyData) {
+      return NextResponse.json({ error: 'Company data not found' }, { status: 404 })
     }
 
     return NextResponse.json({
@@ -56,11 +54,11 @@ export async function GET(request: NextRequest) {
         isApproved: profile.is_approved,
         createdAt: profile.created_at,
       },
-      student: studentData,
+      company: companyData,
     })
 
   } catch (error) {
-    console.error('Get student profile error:', error)
+    console.error('Get company profile error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -94,25 +92,23 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Update student table
-    const studentUpdates: any = {}
-    if (validatedData.phone) studentUpdates.phone = validatedData.phone
-    if (validatedData.address) studentUpdates.address = validatedData.address
-    if (validatedData.branch) studentUpdates.branch = validatedData.branch
-    if (validatedData.year) studentUpdates.year = validatedData.year
-    if (validatedData.cgpa !== undefined) studentUpdates.cgpa = validatedData.cgpa
-    if (validatedData.skills) studentUpdates.skills = validatedData.skills
-    if (validatedData.certifications) studentUpdates.certifications = validatedData.certifications
-    if (validatedData.trainingExperience) studentUpdates.training_experience = validatedData.trainingExperience
+    // Update company table
+    const companyUpdates: any = {}
+    if (validatedData.companyName) companyUpdates.company_name = validatedData.companyName
+    if (validatedData.industry) companyUpdates.industry = validatedData.industry
+    if (validatedData.contactPerson) companyUpdates.contact_person = validatedData.contactPerson
+    if (validatedData.phone) companyUpdates.phone = validatedData.phone
+    if (validatedData.website) companyUpdates.website = validatedData.website
+    if (validatedData.description) companyUpdates.description = validatedData.description
 
-    if (Object.keys(studentUpdates).length > 0) {
-      const { error: studentError } = await supabase
-        .from('students')
-        .update(studentUpdates)
+    if (Object.keys(companyUpdates).length > 0) {
+      const { error: companyError } = await supabase
+        .from('companies')
+        .update(companyUpdates)
         .eq('profile_id', user.id)
 
-      if (studentError) {
-        return NextResponse.json({ error: 'Failed to update student data' }, { status: 400 })
+      if (companyError) {
+        return NextResponse.json({ error: 'Failed to update company data' }, { status: 400 })
       }
     }
 
@@ -123,7 +119,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid input data', details: error.errors }, { status: 400 })
     }
 
-    console.error('Update student profile error:', error)
+    console.error('Update company profile error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+

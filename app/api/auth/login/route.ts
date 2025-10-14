@@ -19,9 +19,20 @@ export async function POST(request: NextRequest) {
       email: validatedData.email,
       password: validatedData.password,
     })
-    console.log('Auth response:', authData, authError);
 
     if (authError) {
+      // Check if it's an email not confirmed error
+      if (authError.message.includes('email_not_confirmed')) {
+        return NextResponse.json(
+          { 
+            error: 'Email not verified', 
+            details: 'Please check your email and click the verification link before logging in.',
+            requiresEmailVerification: true 
+          },
+          { status: 401 }
+        )
+      }
+      
       return NextResponse.json(
         { error: authError.message },
         { status: 401 }
@@ -34,14 +45,25 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
-    console.log('Auth user id:', authData.user.id);
+
+    // Check if email is confirmed
+    if (!authData.user.email_confirmed_at) {
+      return NextResponse.json(
+        { 
+          error: 'Email not verified', 
+          details: 'Please check your email and click the verification link before logging in.',
+          requiresEmailVerification: true 
+        },
+        { status: 401 }
+      )
+    }
+
     // Get user profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('user_id', authData.user.id)
-      .single() 
-    console.log('Profile query result:', profile, profileError);
+      .eq('id', authData.user.id)
+      .single()
 
     if (profileError || !profile) {
       return NextResponse.json(
@@ -53,7 +75,11 @@ export async function POST(request: NextRequest) {
     // Check if user is approved (skip check for admin role)
     if (profile.role !== 'admin' && !profile.is_approved) {
       return NextResponse.json(
-        { error: 'Account pending approval. Please wait for admin/faculty approval.' },
+        { 
+          error: 'Account pending approval', 
+          details: 'Please wait for admin/faculty approval before accessing the system.',
+          requiresApproval: true 
+        },
         { status: 403 }
       )
     }
@@ -91,6 +117,7 @@ export async function POST(request: NextRequest) {
         firstName: profile.first_name,
         lastName: profile.last_name,
         isApproved: profile.is_approved,
+        emailConfirmed: !!authData.user.email_confirmed_at,
         roleData,
       },
       session: authData.session,

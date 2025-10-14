@@ -38,6 +38,48 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = createClient()
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { user_id, title, message, type } = body
+
+    if (!user_id || !title || !message) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    const { data: creator } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!creator || !['admin', 'faculty'].includes(creator.role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { error: insertError } = await supabase
+      .from('notifications')
+      .insert({ user_id, title, message, type: type || 'info' })
+
+    if (insertError) {
+      return NextResponse.json({ error: 'Failed to create notification' }, { status: 400 })
+    }
+
+    return NextResponse.json({ message: 'Notification created' })
+
+  } catch (error) {
+    console.error('Create notification error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function PUT(request: NextRequest) {
   try {
     const supabase = createClient()

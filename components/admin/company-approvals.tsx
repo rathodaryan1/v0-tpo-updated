@@ -55,6 +55,7 @@ export function CompanyApprovals() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRequest, setSelectedRequest] = useState<number | null>(null)
   const [feedback, setFeedback] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const filteredRequests = companyRequests.filter(
     (request) =>
@@ -79,12 +80,44 @@ export function CompanyApprovals() {
     }
   }
 
-  const handleApprove = (requestId: number) => {
-    console.log(`Approved company request ${requestId}`)
+  const handleApprove = async (requestId: number) => {
+    try {
+      setIsSubmitting(true)
+      const profileId = crypto.randomUUID()
+      const res = await fetch('/api/admin/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId, approve: true }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || 'Failed to approve')
+        return
+      }
+      alert('Approved successfully')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handleReject = (requestId: number) => {
-    console.log(`Rejected company request ${requestId} with feedback: ${feedback}`)
+  const handleReject = async (requestId: number) => {
+    try {
+      setIsSubmitting(true)
+      const profileId = crypto.randomUUID()
+      const res = await fetch('/api/admin/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId, approve: false, feedback }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || 'Failed to reject')
+        return
+      }
+      alert('Rejected successfully')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const selectedRequestData = companyRequests.find((r) => r.id === selectedRequest)
@@ -250,11 +283,11 @@ export function CompanyApprovals() {
                 </div>
 
                 <div className="flex gap-2 pt-4 border-t">
-                  <Button onClick={() => handleApprove(selectedRequestData.id)} className="flex-1">
+                  <Button disabled={isSubmitting} onClick={() => handleApprove(selectedRequestData.id)} className="flex-1">
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Approve
                   </Button>
-                  <Button variant="destructive" onClick={() => handleReject(selectedRequestData.id)} className="flex-1">
+                  <Button disabled={isSubmitting} variant="destructive" onClick={() => handleReject(selectedRequestData.id)} className="flex-1">
                     <XCircle className="h-4 w-4 mr-2" />
                     Reject
                   </Button>

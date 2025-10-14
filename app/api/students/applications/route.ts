@@ -36,9 +36,11 @@ export async function GET(request: NextRequest) {
           salary_max,
           job_type,
           application_deadline,
+          status,
           companies!inner(
             company_name,
-            industry
+            industry,
+            contact_person
           )
         )
       `)
@@ -52,7 +54,69 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ applications })
 
   } catch (error) {
-    console.error('Get applications error:', error)
+    console.error('Get student applications error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = createClient()
+    
+    // Get current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const applicationId = searchParams.get('id')
+
+    if (!applicationId) {
+      return NextResponse.json({ error: 'Application ID is required' }, { status: 400 })
+    }
+
+    // Verify the application belongs to the student
+    const { data: student, error: studentError } = await supabase
+      .from('students')
+      .select('id')
+      .eq('profile_id', user.id)
+      .single()
+
+    if (studentError || !student) {
+      return NextResponse.json({ error: 'Student profile not found' }, { status: 404 })
+    }
+
+    const { data: application, error: applicationError } = await supabase
+      .from('applications')
+      .select('id, status')
+      .eq('id', applicationId)
+      .eq('student_id', student.id)
+      .single()
+
+    if (applicationError || !application) {
+      return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+    }
+
+    // Only allow deletion if status is 'applied'
+    if (application.status !== 'applied') {
+      return NextResponse.json({ error: 'Cannot delete application that has been reviewed' }, { status: 400 })
+    }
+
+    // Delete the application
+    const { error: deleteError } = await supabase
+      .from('applications')
+      .delete()
+      .eq('id', applicationId)
+
+    if (deleteError) {
+      return NextResponse.json({ error: 'Failed to delete application' }, { status: 400 })
+    }
+
+    return NextResponse.json({ message: 'Application deleted successfully' })
+
+  } catch (error) {
+    console.error('Delete application error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -55,6 +55,7 @@ export function FacultyApprovals() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRequest, setSelectedRequest] = useState<number | null>(null)
   const [feedback, setFeedback] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const filteredRequests = facultyRequests.filter(
     (request) =>
@@ -79,12 +80,45 @@ export function FacultyApprovals() {
     }
   }
 
-  const handleApprove = (requestId: number) => {
-    console.log(`Approved faculty request ${requestId}`)
+  const handleApprove = async (requestId: number) => {
+    try {
+      setIsSubmitting(true)
+      // In real data, we would have profileId; here we map demo id to placeholder
+      const profileId = crypto.randomUUID()
+      const res = await fetch('/api/admin/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId, approve: true }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || 'Failed to approve')
+        return
+      }
+      alert('Approved successfully')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handleReject = (requestId: number) => {
-    console.log(`Rejected faculty request ${requestId} with feedback: ${feedback}`)
+  const handleReject = async (requestId: number) => {
+    try {
+      setIsSubmitting(true)
+      const profileId = crypto.randomUUID()
+      const res = await fetch('/api/admin/approvals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId, approve: false, feedback }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        alert(data.error || 'Failed to reject')
+        return
+      }
+      alert('Rejected successfully')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const selectedRequestData = facultyRequests.find((r) => r.id === selectedRequest)
@@ -243,11 +277,11 @@ export function FacultyApprovals() {
                 </div>
 
                 <div className="flex gap-2 pt-4 border-t">
-                  <Button onClick={() => handleApprove(selectedRequestData.id)} className="flex-1">
+                  <Button disabled={isSubmitting} onClick={() => handleApprove(selectedRequestData.id)} className="flex-1">
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Approve
                   </Button>
-                  <Button variant="destructive" onClick={() => handleReject(selectedRequestData.id)} className="flex-1">
+                  <Button disabled={isSubmitting} variant="destructive" onClick={() => handleReject(selectedRequestData.id)} className="flex-1">
                     <XCircle className="h-4 w-4 mr-2" />
                     Reject
                   </Button>

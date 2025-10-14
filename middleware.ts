@@ -44,16 +44,45 @@ export async function middleware(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
 
-    // Only redirect to login if user is not authenticated and trying to access protected routes
-    if (
-      !user &&
-      !request.nextUrl.pathname.startsWith('/') && // Allow home page
-      !request.nextUrl.pathname.startsWith('/api') && // Allow API routes
-      !request.nextUrl.pathname.startsWith('/_next') && // Allow Next.js internals
-      !request.nextUrl.pathname.includes('.') // Allow static files
-    ) {
-      // For now, let all routes pass through - we'll handle auth in components
-      return supabaseResponse
+    // Define protected routes that require authentication
+    const protectedRoutes = ['/student', '/faculty', '/company', '/admin']
+    const isProtectedRoute = protectedRoutes.some(route => 
+      request.nextUrl.pathname.startsWith(route)
+    )
+    
+    // Define public routes that don't require authentication
+    const publicRoutes = ['/', '/api', '/auth', '/_next']
+    const isPublicRoute = publicRoutes.some(route => 
+      request.nextUrl.pathname.startsWith(route)
+    ) || request.nextUrl.pathname.includes('.')
+
+    // Redirect to login if accessing protected routes without authentication
+    if (!user && isProtectedRoute) {
+      const redirectUrl = new URL('/auth/login', request.url)
+      redirectUrl.searchParams.set('redirectTo', request.nextUrl.pathname)
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    // Redirect authenticated users away from auth pages
+    if (user && request.nextUrl.pathname.startsWith('/auth/login')) {
+      // Get user profile to determine redirect
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, is_approved')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        if (profile.role === 'admin') {
+          return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+        } else if (profile.role === 'student') {
+          return NextResponse.redirect(new URL('/student/dashboard', request.url))
+        } else if (profile.role === 'faculty') {
+          return NextResponse.redirect(new URL('/faculty/dashboard', request.url))
+        } else if (profile.role === 'company') {
+          return NextResponse.redirect(new URL('/company/dashboard', request.url))
+        }
+      }
     }
 
     // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're

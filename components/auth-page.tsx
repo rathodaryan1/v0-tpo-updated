@@ -83,22 +83,61 @@ export function AuthPage() {
   }
 
   // Registration handler
-  const handleRegister = async (userType: string, formData: Record<string, any>) => {
+  const handleRegister = async (role: string, formData: Record<string, any>) => {
     setRegisterLoading(true);
     try {
+      // Transform form data to match our API schema
+      const registrationData = {
+        email: formData.email,
+        password: formData.password,
+        role: role,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        // Role-specific fields
+        ...(role === 'student' && {
+          rollNumber: formData.rollNumber,
+          branch: formData.branch,
+          year: 1, // Default year
+          phone: formData.phone || '',
+        }),
+        ...(role === 'faculty' && {
+          employeeId: formData.employeeId,
+          department: formData.department,
+          phone: formData.phone || '',
+        }),
+        ...(role === 'company' && {
+          companyName: formData.companyName,
+          industry: formData.industry,
+          contactPerson: formData.contactPerson,
+          phone: formData.phone || '',
+        }),
+      };
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, userType }),
+        body: JSON.stringify(registrationData),
       });
+      
       const data = await response.json();
+      
       if (response.ok) {
-        alert('Registration successful! Please check your email for verification.');
+        if (data.requiresEmailVerification) {
+          alert('Registration successful! Please check your email for verification before logging in.');
+        } else {
+          alert('Registration successful! Please wait for admin approval.');
+        }
         setActiveTab('login');
       } else {
-        alert(data.error || 'Registration failed');
+        if (data.details && Array.isArray(data.details)) {
+          const errorMessages = data.details.map((err: any) => err.message).join(', ');
+          alert(`Registration failed: ${errorMessages}`);
+        } else {
+          alert(data.error || 'Registration failed');
+        }
       }
     } catch (error) {
+      console.error('Registration error:', error);
       alert('Registration failed. Please try again.');
     }
     setRegisterLoading(false);
@@ -299,7 +338,16 @@ export function AuthPage() {
 }
 
 function StudentRegistrationForm({ onRegister, loading }: { onRegister: (data: any) => void, loading: boolean }) {
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", rollNumber: "", branch: "", password: "" });
+  const [form, setForm] = useState({ 
+    firstName: "", 
+    lastName: "", 
+    email: "", 
+    rollNumber: "", 
+    branch: "", 
+    password: "",
+    phone: ""
+  });
+  
   return (
     <form
       className="space-y-4"
@@ -310,45 +358,82 @@ function StudentRegistrationForm({ onRegister, loading }: { onRegister: (data: a
     >
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="firstName">First Name</Label>
-          <Input id="firstName" value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} />
+          <Label htmlFor="firstName">First Name *</Label>
+          <Input 
+            id="firstName" 
+            value={form.firstName} 
+            onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
+            required
+          />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="lastName">Last Name</Label>
-          <Input id="lastName" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} />
+          <Label htmlFor="lastName">Last Name *</Label>
+          <Input 
+            id="lastName" 
+            value={form.lastName} 
+            onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
+            required
+          />
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+        <Label htmlFor="email">Email *</Label>
+        <Input 
+          id="email" 
+          type="email" 
+          value={form.email} 
+          onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+          required
+        />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="rollNumber">Roll Number</Label>
-        <Input id="rollNumber" value={form.rollNumber} onChange={e => setForm(f => ({ ...f, rollNumber: e.target.value }))} />
+        <Label htmlFor="rollNumber">Roll Number *</Label>
+        <Input 
+          id="rollNumber" 
+          value={form.rollNumber} 
+          onChange={e => setForm(f => ({ ...f, rollNumber: e.target.value }))}
+          required
+        />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="branch">Branch</Label>
+        <Label htmlFor="branch">Branch *</Label>
         <Select value={form.branch} onValueChange={value => setForm(f => ({ ...f, branch: value }))}>
           <SelectTrigger>
             <SelectValue placeholder="Select your branch" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="cse">Computer Science Engineering</SelectItem>
-            <SelectItem value="ece">Electronics & Communication</SelectItem>
-            <SelectItem value="me">Mechanical Engineering</SelectItem>
-            <SelectItem value="ce">Civil Engineering</SelectItem>
-            <SelectItem value="ee">Electrical Engineering</SelectItem>
+            <SelectItem value="Computer Science Engineering">Computer Science Engineering</SelectItem>
+            <SelectItem value="Electronics & Communication">Electronics & Communication</SelectItem>
+            <SelectItem value="Mechanical Engineering">Mechanical Engineering</SelectItem>
+            <SelectItem value="Civil Engineering">Civil Engineering</SelectItem>
+            <SelectItem value="Electrical Engineering">Electrical Engineering</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input id="password" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+        <Label htmlFor="phone">Phone Number</Label>
+        <Input 
+          id="phone" 
+          value={form.phone} 
+          onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+          placeholder="Optional"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="password">Password *</Label>
+        <Input 
+          id="password" 
+          type="password" 
+          value={form.password} 
+          onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+          minLength={6}
+          required
+        />
       </div>
       <Badge variant="outline" className="w-full justify-center py-2">
         Email verification required after registration
       </Badge>
-      <Button className="w-full" size="lg" type="submit" disabled={loading}>
+      <Button className="w-full" size="lg" type="submit" disabled={loading || !form.firstName || !form.lastName || !form.email || !form.rollNumber || !form.branch || !form.password}>
         {loading ? "Registering..." : "Register as Student"}
       </Button>
     </form>
@@ -356,7 +441,16 @@ function StudentRegistrationForm({ onRegister, loading }: { onRegister: (data: a
 }
 
 function FacultyRegistrationForm({ onRegister, loading }: { onRegister: (data: any) => void, loading: boolean }) {
-  const [form, setForm] = useState({ facultyName: "", facultyEmail: "", employeeId: "", department: "", facultyPassword: "" });
+  const [form, setForm] = useState({ 
+    firstName: "", 
+    lastName: "", 
+    email: "", 
+    employeeId: "", 
+    department: "", 
+    password: "",
+    phone: ""
+  });
+  
   return (
     <form
       className="space-y-4"
@@ -365,41 +459,84 @@ function FacultyRegistrationForm({ onRegister, loading }: { onRegister: (data: a
         onRegister(form);
       }}
     >
-      <div className="space-y-2">
-        <Label htmlFor="facultyName">Full Name</Label>
-        <Input id="facultyName" value={form.facultyName} onChange={e => setForm(f => ({ ...f, facultyName: e.target.value }))} />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="firstName">First Name *</Label>
+          <Input 
+            id="firstName" 
+            value={form.firstName} 
+            onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="lastName">Last Name *</Label>
+          <Input 
+            id="lastName" 
+            value={form.lastName} 
+            onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
+            required
+          />
+        </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="facultyEmail">Email</Label>
-        <Input id="facultyEmail" type="email" value={form.facultyEmail} onChange={e => setForm(f => ({ ...f, facultyEmail: e.target.value }))} />
+        <Label htmlFor="email">Email *</Label>
+        <Input 
+          id="email" 
+          type="email" 
+          value={form.email} 
+          onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+          required
+        />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="employeeId">Employee ID</Label>
-        <Input id="employeeId" value={form.employeeId} onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))} />
+        <Label htmlFor="employeeId">Employee ID *</Label>
+        <Input 
+          id="employeeId" 
+          value={form.employeeId} 
+          onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))}
+          required
+        />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="department">Department</Label>
+        <Label htmlFor="department">Department *</Label>
         <Select value={form.department} onValueChange={value => setForm(f => ({ ...f, department: value }))}>
           <SelectTrigger>
             <SelectValue placeholder="Select department" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="cse">Computer Science Engineering</SelectItem>
-            <SelectItem value="ece">Electronics & Communication</SelectItem>
-            <SelectItem value="me">Mechanical Engineering</SelectItem>
-            <SelectItem value="ce">Civil Engineering</SelectItem>
-            <SelectItem value="ee">Electrical Engineering</SelectItem>
+            <SelectItem value="Computer Science Engineering">Computer Science Engineering</SelectItem>
+            <SelectItem value="Electronics & Communication">Electronics & Communication</SelectItem>
+            <SelectItem value="Mechanical Engineering">Mechanical Engineering</SelectItem>
+            <SelectItem value="Civil Engineering">Civil Engineering</SelectItem>
+            <SelectItem value="Electrical Engineering">Electrical Engineering</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="facultyPassword">Password</Label>
-        <Input id="facultyPassword" type="password" value={form.facultyPassword} onChange={e => setForm(f => ({ ...f, facultyPassword: e.target.value }))} />
+        <Label htmlFor="phone">Phone Number</Label>
+        <Input 
+          id="phone" 
+          value={form.phone} 
+          onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+          placeholder="Optional"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="password">Password *</Label>
+        <Input 
+          id="password" 
+          type="password" 
+          value={form.password} 
+          onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+          minLength={6}
+          required
+        />
       </div>
       <Badge variant="outline" className="w-full justify-center py-2">
-        Admin approval required
+        Email verification and admin approval required
       </Badge>
-      <Button className="w-full" size="lg" type="submit" disabled={loading}>
+      <Button className="w-full" size="lg" type="submit" disabled={loading || !form.firstName || !form.lastName || !form.email || !form.employeeId || !form.department || !form.password}>
         {loading ? "Registering..." : "Register as Faculty"}
       </Button>
     </form>
@@ -407,7 +544,17 @@ function FacultyRegistrationForm({ onRegister, loading }: { onRegister: (data: a
 }
 
 function CompanyRegistrationForm({ onRegister, loading }: { onRegister: (data: any) => void, loading: boolean }) {
-  const [form, setForm] = useState({ companyName: "", industry: "", contactPerson: "", companyEmail: "", companyPhone: "", companyPassword: "" });
+  const [form, setForm] = useState({ 
+    firstName: "", 
+    lastName: "", 
+    email: "", 
+    companyName: "", 
+    industry: "", 
+    contactPerson: "", 
+    phone: "", 
+    password: ""
+  });
+  
   return (
     <form
       className="space-y-4"
@@ -416,45 +563,96 @@ function CompanyRegistrationForm({ onRegister, loading }: { onRegister: (data: a
         onRegister(form);
       }}
     >
-      <div className="space-y-2">
-        <Label htmlFor="companyName">Company Name</Label>
-        <Input id="companyName" value={form.companyName} onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))} />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="firstName">First Name *</Label>
+          <Input 
+            id="firstName" 
+            value={form.firstName} 
+            onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="lastName">Last Name *</Label>
+          <Input 
+            id="lastName" 
+            value={form.lastName} 
+            onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))}
+            required
+          />
+        </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="industry">Industry</Label>
+        <Label htmlFor="email">Email *</Label>
+        <Input 
+          id="email" 
+          type="email" 
+          value={form.email} 
+          onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="companyName">Company Name *</Label>
+        <Input 
+          id="companyName" 
+          value={form.companyName} 
+          onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))}
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="industry">Industry *</Label>
         <Select value={form.industry} onValueChange={value => setForm(f => ({ ...f, industry: value }))}>
           <SelectTrigger>
             <SelectValue placeholder="Select industry" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="it">Information Technology</SelectItem>
-            <SelectItem value="finance">Finance & Banking</SelectItem>
-            <SelectItem value="manufacturing">Manufacturing</SelectItem>
-            <SelectItem value="consulting">Consulting</SelectItem>
-            <SelectItem value="healthcare">Healthcare</SelectItem>
+            <SelectItem value="Information Technology">Information Technology</SelectItem>
+            <SelectItem value="Finance & Banking">Finance & Banking</SelectItem>
+            <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+            <SelectItem value="Consulting">Consulting</SelectItem>
+            <SelectItem value="Healthcare">Healthcare</SelectItem>
+            <SelectItem value="Education">Education</SelectItem>
+            <SelectItem value="Retail">Retail</SelectItem>
+            <SelectItem value="Other">Other</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="contactPerson">Contact Person</Label>
-        <Input id="contactPerson" value={form.contactPerson} onChange={e => setForm(f => ({ ...f, contactPerson: e.target.value }))} />
+        <Label htmlFor="contactPerson">Contact Person *</Label>
+        <Input 
+          id="contactPerson" 
+          value={form.contactPerson} 
+          onChange={e => setForm(f => ({ ...f, contactPerson: e.target.value }))}
+          required
+        />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="companyEmail">Email</Label>
-        <Input id="companyEmail" type="email" value={form.companyEmail} onChange={e => setForm(f => ({ ...f, companyEmail: e.target.value }))} />
+        <Label htmlFor="phone">Phone Number</Label>
+        <Input 
+          id="phone" 
+          value={form.phone} 
+          onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+          placeholder="Optional"
+        />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="companyPhone">Phone Number</Label>
-        <Input id="companyPhone" value={form.companyPhone} onChange={e => setForm(f => ({ ...f, companyPhone: e.target.value }))} />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="companyPassword">Password</Label>
-        <Input id="companyPassword" type="password" value={form.companyPassword} onChange={e => setForm(f => ({ ...f, companyPassword: e.target.value }))} />
+        <Label htmlFor="password">Password *</Label>
+        <Input 
+          id="password" 
+          type="password" 
+          value={form.password} 
+          onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+          minLength={6}
+          required
+        />
       </div>
       <Badge variant="outline" className="w-full justify-center py-2">
-        Admin approval required
+        Email verification and admin approval required
       </Badge>
-      <Button className="w-full" size="lg" type="submit" disabled={loading}>
+      <Button className="w-full" size="lg" type="submit" disabled={loading || !form.firstName || !form.lastName || !form.email || !form.companyName || !form.industry || !form.contactPerson || !form.password}>
         {loading ? "Registering..." : "Register as Company"}
       </Button>
     </form>

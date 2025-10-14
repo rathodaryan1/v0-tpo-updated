@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     // Check if job exists and is active
     const { data: job, error: jobError } = await supabase
       .from('jobs')
-      .select('id, status, application_deadline')
+      .select('id, application_deadline, status')
       .eq('id', jobId)
       .single()
 
@@ -45,12 +45,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Job is not active' }, { status: 400 })
     }
 
-    if (new Date(job.application_deadline) < new Date()) {
+    // Check if application deadline has passed
+    const deadline = new Date(job.application_deadline)
+    if (deadline < new Date()) {
       return NextResponse.json({ error: 'Application deadline has passed' }, { status: 400 })
     }
 
-    // Check if already applied
-    const { data: existingApplication } = await supabase
+    // Check if student has already applied
+    const { data: existingApplication, error: existingError } = await supabase
       .from('applications')
       .select('id')
       .eq('student_id', student.id)
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (existingApplication) {
-      return NextResponse.json({ error: 'Already applied to this job' }, { status: 400 })
+      return NextResponse.json({ error: 'You have already applied for this job' }, { status: 400 })
     }
 
     // Create application
@@ -76,13 +78,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create application' }, { status: 400 })
     }
 
-    // Create notification for student
+    // Create notification for the student
     await supabase
       .from('notifications')
       .insert({
         user_id: user.id,
         title: 'Application Submitted',
-        message: 'Your job application has been submitted successfully.',
+        message: 'Your application has been submitted successfully. You will be notified of updates.',
         type: 'success',
       })
 
@@ -93,13 +95,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid input data', details: error.errors },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Invalid input data', details: error.errors }, { status: 400 })
     }
 
-    console.error('Apply job error:', error)
+    console.error('Apply for job error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -33,4 +33,26 @@ export function createClient() {
   )
 }
 
+// Admin client for server-side operations that require elevated privileges
+export function createAdminClient() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Missing Supabase admin environment variables')
+  }
+
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      cookies: {
+        getAll() {
+          return []
+        },
+        setAll() {
+          // No-op for admin client
+        },
+      },
+    }
+  )
+}
+
 
