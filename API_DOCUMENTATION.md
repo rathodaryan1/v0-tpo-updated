@@ -392,3 +392,4 @@ The system uses the following main tables:
 - SQL injection protection via Supabase
 - XSS protection via input validation
 
+
